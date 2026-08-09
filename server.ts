@@ -9,7 +9,7 @@ import {
   DEFAULT_RUBRIC_CRITERIA,
   DEFAULT_SYSTEM_CONFIG,
   INITIAL_SAMPLE_RESULTS
-} from './src/data/defaults.js';
+} from './src/data/defaults';
 import {
   AssessmentResult,
   KnowledgeUnit,
@@ -17,7 +17,17 @@ import {
   SystemConfig,
   MisconceptionStat,
   MisconceptionFound
-} from './src/types.js';
+} from './src/types';
+
+// Safe Taipei date formatting helper across Vercel and Node environments
+function formatTaipeiDate(): string {
+  try {
+    return new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+  } catch (e) {
+    const d = new Date();
+    return d.toISOString().replace('T', ' ').substring(0, 19);
+  }
+}
 
 // In-memory data store for server session
 let systemConfig: SystemConfig = { ...DEFAULT_SYSTEM_CONFIG };
@@ -25,7 +35,10 @@ let knowledgeUnits: KnowledgeUnit[] = [...DEFAULT_KNOWLEDGE_UNITS];
 let rubricCriteria: RubricCriteria[] = [...DEFAULT_RUBRIC_CRITERIA];
 let assessmentResults: AssessmentResult[] = [...INITIAL_SAMPLE_RESULTS];
 
-const RUBRIC_STORE_PATH = path.join(process.cwd(), 'rubric_store.json');
+const LOCAL_RUBRIC_STORE_PATH = path.join(process.cwd(), 'rubric_store.json');
+const RUBRIC_STORE_PATH = process.env.VERCEL
+  ? path.join('/tmp', 'rubric_store.json')
+  : LOCAL_RUBRIC_STORE_PATH;
 
 const defaultRubricConfig = {
   primaryTypeId: 'conceptMap',
@@ -61,8 +74,12 @@ const defaultRubricConfig = {
 
 function loadRubricConfig() {
   try {
-    if (fs.existsSync(RUBRIC_STORE_PATH)) {
-      const raw = fs.readFileSync(RUBRIC_STORE_PATH, 'utf-8');
+    let targetPath = RUBRIC_STORE_PATH;
+    if (!fs.existsSync(targetPath) && fs.existsSync(LOCAL_RUBRIC_STORE_PATH)) {
+      targetPath = LOCAL_RUBRIC_STORE_PATH;
+    }
+    if (fs.existsSync(targetPath)) {
+      const raw = fs.readFileSync(targetPath, 'utf-8');
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.rubricTypes) && parsed.rubricTypes.length > 0) {
         return parsed;
@@ -410,7 +427,7 @@ function pruneOldRecords360Days() {
         const resultResponse = {
           ...cachedResult,
           id: 'res-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-          submittedAt: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
+          submittedAt: formatTaipeiDate(),
           cached: true
         };
         assessmentResults.unshift(resultResponse);
@@ -837,7 +854,7 @@ ${rubricCriteria
         seatNo,
         unitId,
         unitTitle: unit.title,
-        submittedAt: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
+        submittedAt: formatTaipeiDate(),
         totalScore,
         gradeLevel: parsedData.gradeLevel || (totalScore >= 90 ? 'A (優秀)' : totalScore >= 75 ? 'B (良好)' : totalScore >= 60 ? 'C (尚可)' : 'D (加強)'),
         isRelevant,

@@ -31,9 +31,9 @@ export const StudentSubmissionView: React.FC<StudentSubmissionViewProps> = ({
   onNewAssessmentCreated
 }) => {
   // Student Form State
-  const [studentName, setStudentName] = useState('335344');
-  const [selectedClass, setSelectedClass] = useState(config.classes[0] || '701');
-  const [seatNo, setSeatNo] = useState('04');
+  const [studentName, setStudentName] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [seatNo, setSeatNo] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState(knowledgeUnits[0]?.id || 'unit-bio-01');
 
   // Dynamic Rubric Types State
@@ -95,7 +95,7 @@ export const StudentSubmissionView: React.FC<StudentSubmissionViewProps> = ({
     setErrorMessage('');
     setStudentName('');
     setSeatNo('');
-    setSelectedClass(config.classes[0] || '');
+    setSelectedClass('');
   };
 
   // Handle File Select / Drag & Drop
@@ -261,6 +261,7 @@ export const StudentSubmissionView: React.FC<StudentSubmissionViewProps> = ({
               onChange={(e) => setSelectedClass(e.target.value)}
               className="w-full bg-[#eef2f6] border border-slate-200/60 rounded-2xl px-4 py-3 text-slate-800 font-bold text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#10b981] transition-all cursor-pointer"
             >
+              <option value="">請選擇班級</option>
               {config.classes.map((c) => (
                 <option key={c} value={c}>
                   {c}
