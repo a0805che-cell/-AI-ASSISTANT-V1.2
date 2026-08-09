@@ -17,6 +17,7 @@ import {
 import { KnowledgeUnit, AssessmentResult, SystemConfig, RubricTypeItem } from '../types';
 import { CameraModal } from './CameraModal';
 import { getCombinedMisconceptions } from '../utils/misconceptionUtils';
+import { compressImageBase64 } from '../utils/imageUtils';
 
 interface StudentSubmissionViewProps {
   knowledgeUnits: KnowledgeUnit[];
@@ -172,6 +173,12 @@ export const StudentSubmissionView: React.FC<StudentSubmissionViewProps> = ({
         }
       }
 
+      // Compress image base64 if needed to avoid Vercel 4.5MB Serverless limit
+      let processedBase64 = uploadedImageBase64;
+      if (uploadedImageBase64) {
+        processedBase64 = await compressImageBase64(uploadedImageBase64, 1600, 0.85);
+      }
+
       const response = await fetch('/api/assess', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,8 +188,8 @@ export const StudentSubmissionView: React.FC<StudentSubmissionViewProps> = ({
           seatNo,
           unitId: selectedUnitId,
           textContent,
-          imageBase64: uploadedImageBase64,
-          fileName: uploadedFileName || (uploadedImageBase64 ? 'student_worksheet_photo.jpg' : 'typed_assignment.txt'),
+          imageBase64: processedBase64,
+          fileName: uploadedFileName || (processedBase64 ? 'student_worksheet_photo.jpg' : 'typed_assignment.txt'),
           fileType: uploadedFileType || 'image/jpeg',
           rubricType: activeRubricType,
           rubricText: activeRubricText
@@ -190,7 +197,21 @@ export const StudentSubmissionView: React.FC<StudentSubmissionViewProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('評改 API 伺服器回應異常');
+        let errDetail = '';
+        try {
+          const errJson = await response.json();
+          errDetail = errJson.error || errJson.message || '';
+        } catch (_) {
+          errDetail = await response.text().catch(() => '');
+        }
+
+        if (response.status === 413) {
+          throw new Error('作業檔案/圖片容量過大 (413)，請拍攝較清晰且較小的照片後重新上傳。');
+        }
+        if (response.status === 404) {
+          throw new Error('無法連線至評改 API 後端服務 (404 Not Found)。若發佈至 Vercel，請確認 vercel.json 與後端 API 路由設定。');
+        }
+        throw new Error(`評改 API 伺服器回應異常 (${response.status}${errDetail ? ': ' + errDetail : ''})`);
       }
 
       const resultData: AssessmentResult = await response.json();

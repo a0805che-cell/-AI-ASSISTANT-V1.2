@@ -107,19 +107,28 @@ const getGeminiClient = () => {
   return new GoogleGenAI({ apiKey: apiKey || '' });
 };
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+export const app = express();
 
-  app.use(express.json({ limit: '20mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
-  // --- API ROUTES ---
+// Enable CORS for cross-origin or Vercel preview requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
-  // Get System Config
-  app.get('/api/config', (req, res) => {
-    res.json(systemConfig);
-  });
+// --- API ROUTES ---
+
+// Get System Config
+app.get('/api/config', (req, res) => {
+  res.json(systemConfig);
+});
 
   // Update System Config
   app.put('/api/config', (req, res) => {
@@ -869,24 +878,33 @@ ${rubricCriteria
     }
   });
 
-  // Vite Development / Middleware Setup
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa'
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+  // Vite Development / Middleware Setup in standalone mode
+  async function startServer() {
+    const PORT = Number(process.env.PORT) || 3000;
+
+    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa'
+      });
+      app.use(vite.middlewares);
+    } else if (!process.env.VERCEL) {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
+
+    if (!process.env.VERCEL) {
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`[Server Ready] 生物評改系統 AI ASSISTANT V1.2 listening on http://0.0.0.0:${PORT}`);
+      });
+    }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Server Ready] 生物評改系統 AI ASSISTANT V1.2 listening on http://0.0.0.0:${PORT}`);
-  });
-}
+  if (!process.env.VERCEL) {
+    startServer();
+  }
 
-startServer();
+  export default app;
