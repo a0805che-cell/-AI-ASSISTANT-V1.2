@@ -1,0 +1,11 @@
+{
+  "name": "作業評改系統 AI ASSISTANT V1.2",
+  "description": "國中自然科 AI 評改與個人化差異化回饋系統 - 結合 RAG 知識庫、迷思概念診斷、信度鎖定與 Google Sheets/Firebase 同步",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
